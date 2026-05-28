@@ -7,14 +7,17 @@
         "ios": "2.2081"
     },
     "version": "1.0.0",
-    "id": "MalikHw.object-budget",
-    "name": "object-budget",
-    "developer": "MalikHw",
-    "description": "desc.",
-    "tags": ["yes", "yeah"],
+    "id": "malikhw47.object-budget",
+    "name": "object budget",
+    "developer": "MalikHw47",
+    "description": "Set a budget for your levels!",
+    "tags": ["editor", "offline", "utility"],
     "links": {
         "source": "https://github.com/MalikHw/object-budget",
         "community": "https://discord.gg/G9bZ92eg2n"
     },
-    "settings": {}
+    "dependencies": {
+        "geode.node-ids": ">= 1.23.3",
+        "miskaa.notif": "1.0.4-beta.4"
+    }
 }
