@@ -27,7 +27,7 @@ protected:
         m_levelID = levelID;
         this->setTitle("Set Object Count Budget");
         auto cs = m_mainLayer->getContentSize();
-        float cx = cs.width  / 2.f;
+        float cx = cs.width / 2.f;
         float cy = cs.height / 2.f;
         // input
         m_input = CCTextInputNode::create(180.f, 40.f, "Enter limit...", "bigFont.fnt");
@@ -44,7 +44,7 @@ protected:
         btnMenu->setPosition(ccp(cx, cy - 42.f));
         m_mainLayer->addChild(btnMenu);
         auto addBtn = [&](const char* text, const char* bg, float x, SEL_MenuHandler sel) {
-            auto spr  = ButtonSprite::create(text, "bigFont.fnt", bg, 0.7f);
+            auto spr = ButtonSprite::create(text, "bigFont.fnt", bg, 0.7f);
             auto item = CCMenuItemSpriteExtra::create(spr, this, sel);
             item->setPositionX(x);
             btnMenu->addChild(item);
@@ -52,7 +52,6 @@ protected:
         addBtn("Set", "GJ_button_01.png", -62.f, menu_selector(BudgetPopup::onSet));
         addBtn("Clear", "GJ_button_06.png", 0.f, menu_selector(BudgetPopup::onClear));
         addBtn("Cancel", "GJ_button_05.png", 62.f, menu_selector(BudgetPopup::onCancel));
-
         return true;
     }
     void onSet(CCObject*) {
@@ -82,7 +81,6 @@ protected:
     void onCancel(CCObject*) {
         this->onClose(nullptr);
     }
-
 public:
     static BudgetPopup* create(int levelID) {
         auto ret = new BudgetPopup();
@@ -143,11 +141,11 @@ class $modify(MyEditLevelLayer, EditLevelLayer) {
 class $modify(MyLevelEditorLayer, LevelEditorLayer) {
     struct Fields {
         // Set true when user clicks "Yes" (ignore for the session)
-        bool m_budgetIgnored       = false;
+        bool m_budgetIgnored = false;
         // Tracks the highest % milestone already notified (75/85/95)
-        int  m_lastNotifMilestone  = 0;
+        int m_lastNotifMilestone = 0;
         // Prevent re-entrant alert while one is already open
-        bool m_alertOpen           = false;
+        bool m_alertOpen = false;
     };
     GameObject* createObject(int key, CCPoint position, bool noUndo) {
         auto obj = LevelEditorLayer::createObject(key, position, noUndo);
@@ -165,7 +163,9 @@ class $modify(MyLevelEditorLayer, LevelEditorLayer) {
         auto fireNotif = [](const std::string& text) {
             notifapi::notif::create(text, "warning", 3.5f, {0, 0, 0}, 1.0f, notifapi::Position::TopCenter, notifapi::Animation::Slide, "", 0.f)->show();
         };
-        if (pct >= 95 && f.m_lastNotifMilestone < 95) { f.m_lastNotifMilestone = 95; fireNotif("95% of budget reached!"); } else if (pct >= 85 && f.m_lastNotifMilestone < 85) { f.m_lastNotifMilestone = 85; fireNotif("85% of budget reached!"); } else if (pct >= 75 && f.m_lastNotifMilestone < 75) { f.m_lastNotifMilestone = 75; fireNotif("75% of budget reached!"); }
+        if (pct >= 95 && f.m_lastNotifMilestone < 95) { f.m_lastNotifMilestone = 95; fireNotif("95% of budget reached!"); }
+        else if (pct >= 85 && f.m_lastNotifMilestone < 85) { f.m_lastNotifMilestone = 85; fireNotif("85% of budget reached!"); }
+        else if (pct >= 75 && f.m_lastNotifMilestone < 75) { f.m_lastNotifMilestone = 75; fireNotif("75% of budget reached!"); }
         // budget reached reached alert
         if (count >= budget && !f.m_budgetIgnored && !f.m_alertOpen) {
             f.m_alertOpen = true;
@@ -196,7 +196,7 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
         int budget = getBudget(m_editorLayer->m_level->m_levelID);
         if (budget <= 0) return true;
         int count = m_editorLayer->m_objectCount.value();
-        int pct   = (int)((float)count / (float)budget * 100.f);
+        int pct = (int)((float)count / (float)budget * 100.f);
         std::string append = fmt::format(" (/{} - {}%)", budget, pct);
         // geode.node-ids sees object-count-label
         CCNode* labelNode = this->getChildByIDRecursive("object-count-label");
@@ -209,7 +209,7 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
                     auto* lbl = dynamic_cast<CCLabelBMFont*>(child);
                     if (!lbl) continue;
                     std::string s = lbl->getString();
-                    if (s.find("bjects") != std::string::npos) { // "Objects" or "objects" since idk lol
+                    if (s.find("bjects") != std::string::npos) {
                         labelNode = lbl;
                         break;
                     }
