@@ -6,7 +6,7 @@
         "android": "2.2081",
         "ios": "2.2081"
     },
-    "version": "v0.1.2",
+    "version": "v0.2.0-beta",
     "id": "malikhw47.object-budget",
     "name": "object budget",
     "developer": "MalikHw47",
@@ -18,6 +18,7 @@
     },
     "dependencies": {
         "geode.node-ids": "1.23.3",
-        "miskaa.notif": "1.0.4-beta.4"
+        "miskaa.notif": "1.0.4-beta.4",
+        "alphalaneous.level-storage-api": ">=1.0.0"
     }
 }

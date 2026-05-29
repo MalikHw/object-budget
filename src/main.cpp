@@ -2,22 +2,26 @@
 #include <Geode/modify/LevelEditorLayer.hpp>
 #include <Geode/modify/EditorPauseLayer.hpp>
 #include <miskaa.notif/src/includes/notif.hpp>
+#include <alphalaneous.level-storage-api/include/LevelStorageAPI.hpp>
 
 using namespace geode::prelude;
 
-// Per-level budget save helpers
-static std::string budgetKey(int levelID) { return "budget_" + std::to_string(levelID); }
-static int getBudget(int levelID) { return Mod::get()->getSavedValue<int>(budgetKey(levelID), 0); }
-static void saveBudget(int levelID, int budget) { Mod::get()->setSavedValue<int>(budgetKey(levelID), budget); }
+static constexpr const char* BUDGET_KEY = "budget";
+static int getBudget(CCLayer* layer) {
+    return alpha::level_storage::getSavedValue<int>(layer, BUDGET_KEY);
+}
+static void saveBudget(LevelEditorLayer* layer, int budget) {
+    alpha::level_storage::setSavedValue(layer, BUDGET_KEY, budget);
+}
 
 // BudgetPopup
 class BudgetPopup : public geode::Popup {
 protected:
-    int m_levelID = 0;
+    LevelEditorLayer* m_editorLayer = nullptr;
     geode::TextInput* m_input = nullptr;
-    bool init(int levelID) {
+    bool init(LevelEditorLayer* editorLayer) {
         if (!Popup::init(280.f, 185.f)) return false;
-        m_levelID = levelID;
+        m_editorLayer = editorLayer;
         this->setTitle("Set Object Count Budget");
         auto cs = m_mainLayer->getContentSize();
         float cx = cs.width / 2.f, cy = cs.height / 2.f;
@@ -26,7 +30,7 @@ protected:
         m_input->setMaxCharCount(9);
         m_input->setPosition(ccp(cx, cy + 12.f));
         m_input->setScale(0.75f);
-        int current = getBudget(levelID);
+        int current = getBudget(editorLayer);
         if (current > 0) m_input->setString(std::to_string(current));
         m_mainLayer->addChild(m_input);
         auto btnMenu = CCMenu::create();
@@ -46,20 +50,20 @@ protected:
     void onSet(CCObject*) {
         auto res = geode::utils::numFromString<int>(m_input->getString());
         if (!res || *res <= 0) {FLAlertLayer::create("Error", res ? "Budget must be greater than 0" : "Please enter a number :sob:", "OK")->show(); return;}
-        saveBudget(m_levelID, *res);
+        saveBudget(m_editorLayer, *res);
         this->onClose(nullptr);
         FLAlertLayer::create("Budget Set", fmt::format("Object budget is now set to <cy>{}</c>!", *res).c_str(), "OK")->show();
     }
     void onClear(CCObject*) {
-        saveBudget(m_levelID, 0);
+        saveBudget(m_editorLayer, 0);
         this->onClose(nullptr);
         FLAlertLayer::create("Budget Cleared", "Object budget removed.", "OK")->show();
     }
     void onCancel(CCObject*) { this->onClose(nullptr); }
 public:
-    static BudgetPopup* create(int levelID) {
+    static BudgetPopup* create(LevelEditorLayer* editorLayer) {
         auto ret = new BudgetPopup();
-        if (ret->init(levelID)) { ret->autorelease(); return ret; }
+        if (ret->init(editorLayer)) { ret->autorelease(); return ret; }
         delete ret;
         return nullptr;
     }
@@ -75,7 +79,7 @@ class $modify(MyLevelEditorLayer, LevelEditorLayer) {
     GameObject* createObject(int key, CCPoint position, bool noUndo) {
         auto obj = LevelEditorLayer::createObject(key, position, noUndo);
         if (!obj || !m_level) return obj;
-        int budget = getBudget(m_level->m_levelID);
+        int budget = getBudget(this);
         if (budget <= 0) return obj;
         int count = m_objectCount.value();
         int pct = (int)((float)count / (float)budget * 100.f);
@@ -106,12 +110,12 @@ class $modify(MyLevelEditorLayer, LevelEditorLayer) {
 class $modify(MyEditorPauseLayer, EditorPauseLayer) {
     void onOpenBudget(CCObject*) {
         if (!m_editorLayer || !m_editorLayer->m_level) return;
-        BudgetPopup::create(m_editorLayer->m_level->m_levelID)->show();
+        BudgetPopup::create(m_editorLayer)->show();
     }
     bool init(LevelEditorLayer* editorLayer) {
         if (!EditorPauseLayer::init(editorLayer)) return false;
         if (!m_editorLayer || !m_editorLayer->m_level) return true;
-        int budget = getBudget(m_editorLayer->m_level->m_levelID);
+        int budget = getBudget(m_editorLayer);
         int count = m_editorLayer->m_objectCount.value();
         // find obj count label
         auto findLabel = [this]() -> CCNode* {

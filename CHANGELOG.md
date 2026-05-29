@@ -1,3 +1,6 @@
+### v0.2.0-beta
+- attempt to save limits for each level
+
 ### v0.1.2
 - kinda click for popup fix
 - fixed notif spam
