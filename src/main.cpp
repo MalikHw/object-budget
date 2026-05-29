@@ -81,8 +81,7 @@ class $modify(MyLevelEditorLayer, LevelEditorLayer) {
         int pct = (int)((float)count / (float)budget * 100.f);
 
         if (pct < 75) m_fields->m_lastNotifMilestone = 0;
-        else if (pct < 85) m_fields->m_lastNotifMilestone = std::min(m_fields->m_lastNotifMilestone, 74);
-        else if (pct < 95) m_fields->m_lastNotifMilestone = std::min(m_fields->m_lastNotifMilestone, 84);
+        
         auto fireNotif = [](const std::string& text) {notifapi::notif::create(text, "warning", 3.5f, {0, 0, 0}, 1.0f, notifapi::Position::TopCenter, notifapi::Animation::Slide, "", 0.f)->show();};
         if (pct >= 95 && m_fields->m_lastNotifMilestone < 95) { m_fields->m_lastNotifMilestone = 95; fireNotif("95% of budget reached!"); }
         else if (pct >= 85 && m_fields->m_lastNotifMilestone < 85) { m_fields->m_lastNotifMilestone = 85; fireNotif("85% of budget reached!"); }
@@ -126,7 +125,7 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
             }
             return nullptr;
         };
-        // append budget info if budget is set
+        // append budget info if budget set
         if (budget > 0) {
             int pct = (int)((float)count / (float)budget * 100.f);
             if (auto* lbl = typeinfo_cast<CCLabelBMFont*>(findLabel())) {
@@ -138,12 +137,14 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
         // make label clickable
         if (auto* labelNode = findLabel()) {
             auto* parent = labelNode->getParent();
+            auto labelSize = labelNode->getContentSize();
+            auto hitSize = CCSize(labelSize.width + 20.f, labelSize.height + 16.f);
             auto hitSpr = CCSprite::create();
-            hitSpr->setContentSize(labelNode->getContentSize());
+            hitSpr->setContentSize(hitSize);
             auto* btn = CCMenuItemSpriteExtra::create(hitSpr, this, menu_selector(MyEditorPauseLayer::onOpenBudget));
             btn->setPosition(labelNode->getPosition());
             btn->setScale(labelNode->getScale());
-            btn->setContentSize(labelNode->getContentSize());
+            btn->setContentSize(hitSize);
             auto* menu = CCMenu::create();
             menu->setPosition({0, 0});
             menu->setZOrder(labelNode->getZOrder() + 1);
