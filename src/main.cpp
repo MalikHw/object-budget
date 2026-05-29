@@ -6,16 +6,9 @@
 using namespace geode::prelude;
 
 // Per-level budget save helpers
-
-static std::string budgetKey(int levelID) {
-    return "budget_" + std::to_string(levelID);
-}
-static int getBudget(int levelID) {
-    return Mod::get()->getSavedValue<int>(budgetKey(levelID), 0);
-}
-static void saveBudget(int levelID, int budget) {
-    Mod::get()->setSavedValue<int>(budgetKey(levelID), budget);
-}
+static std::string budgetKey(int levelID) { return "budget_" + std::to_string(levelID); }
+static int getBudget(int levelID) { return Mod::get()->getSavedValue<int>(budgetKey(levelID), 0); }
+static void saveBudget(int levelID, int budget) { Mod::get()->setSavedValue<int>(budgetKey(levelID), budget); }
 
 // BudgetPopup
 class BudgetPopup : public geode::Popup {
@@ -27,97 +20,56 @@ protected:
         m_levelID = levelID;
         this->setTitle("Set Object Count Budget");
         auto cs = m_mainLayer->getContentSize();
-        float cx = cs.width / 2.f;
-        float cy = cs.height / 2.f;
-        // input
+        float cx = cs.width / 2.f, cy = cs.height / 2.f;
         m_input = geode::TextInput::create(180.f, "Enter limit...", "bigFont.fnt");
         m_input->setFilter("0123456789");
         m_input->setMaxCharCount(9);
         m_input->setPosition(ccp(cx, cy + 12.f));
         m_input->setScale(0.75f);
         int current = getBudget(levelID);
-        if (current > 0)
-            m_input->setString(std::to_string(current));
+        if (current > 0) m_input->setString(std::to_string(current));
         m_mainLayer->addChild(m_input);
-        // btn's
         auto btnMenu = CCMenu::create();
         btnMenu->setPosition(ccp(cx, cy - 42.f));
         m_mainLayer->addChild(btnMenu);
         auto addBtn = [&](const char* text, const char* bg, float x, SEL_MenuHandler sel) {
-            auto spr = ButtonSprite::create(text, "bigFont.fnt", bg, 0.7f);
+            auto spr = ButtonSprite::create(text, "bigFont.fnt", bg, 0.55f);
             auto item = CCMenuItemSpriteExtra::create(spr, this, sel);
             item->setPositionX(x);
             btnMenu->addChild(item);
         };
-        addBtn("Set", "GJ_button_01.png", -83.f, menu_selector(BudgetPopup::onSet));
-        addBtn("Clear", "GJ_button_06.png", 0.f, menu_selector(BudgetPopup::onClear));
-        addBtn("Cancel", "GJ_button_05.png", 83.f, menu_selector(BudgetPopup::onCancel));
+        addBtn("Set",    "GJ_button_01.png", -83.f, menu_selector(BudgetPopup::onSet));
+        addBtn("Clear",  "GJ_button_06.png",   0.f, menu_selector(BudgetPopup::onClear));
+        addBtn("Cancel", "GJ_button_05.png",  83.f, menu_selector(BudgetPopup::onCancel));
         return true;
     }
     void onSet(CCObject*) {
-        std::string str = m_input->getString();
-        if (str.empty()) {
-            FLAlertLayer::create("Error", "Please enter a number :sob:", "OK")->show();
-            return;
-        }
-        int budget = std::stoi(str);
-        if (budget <= 0) {
-            FLAlertLayer::create("Error", "Budget must be greater than 0", "OK")->show();
-            return;
-        }
-        saveBudget(m_levelID, budget);
+        auto res = geode::utils::numFromString<int>(m_input->getString());
+        if (!res || *res <= 0) {FLAlertLayer::create("Error", res ? "Budget must be greater than 0" : "Please enter a number :sob:", "OK")->show(); return;}
+        saveBudget(m_levelID, *res);
         this->onClose(nullptr);
-        FLAlertLayer::create(
-            "Budget Set",
-            fmt::format("Object budget is now set to <cy>{}</c>!", budget).c_str(),
-            "OK"
-        )->show();
+        FLAlertLayer::create("Budget Set", fmt::format("Object budget is now set to <cy>{}</c>!", *res).c_str(), "OK")->show();
     }
     void onClear(CCObject*) {
         saveBudget(m_levelID, 0);
         this->onClose(nullptr);
         FLAlertLayer::create("Budget Cleared", "Object budget removed.", "OK")->show();
     }
-    void onCancel(CCObject*) {
-        this->onClose(nullptr);
-    }
+    void onCancel(CCObject*) { this->onClose(nullptr); }
 public:
     static BudgetPopup* create(int levelID) {
         auto ret = new BudgetPopup();
-        if (ret->init(levelID)) {
-            ret->autorelease();
-            return ret;
-        }
+        if (ret->init(levelID)) { ret->autorelease(); return ret; }
         delete ret;
         return nullptr;
-    }
-};
-
-// Budget alert delegate
-class BudgetAlertDelegate : public CCObject, public FLAlertLayerProtocol {
-public:
-    // btn2 is true then "no" (block)
-    // btn2 is true then "Yes" (continue / ignore budget this session)
-    std::function<void(bool)> callback;
-    static BudgetAlertDelegate* create(std::function<void(bool)> cb) {
-        auto* d = new BudgetAlertDelegate();
-        d->callback = std::move(cb);
-        d->autorelease();
-        return d;
-    }
-    void FLAlert_Clicked(FLAlertLayer*, bool btn2) override {
-        if (callback) callback(btn2);
     }
 };
 
 // LevelEditorLayer
 class $modify(MyLevelEditorLayer, LevelEditorLayer) {
     struct Fields {
-        // Set true when user clicks "Yes" (ignore for the session)
         bool m_budgetIgnored = false;
-        // Tracks the highest % milestone already notified (75/85/95)
         int m_lastNotifMilestone = 0;
-        // Prevent re-entrant alert while one is already open
         bool m_alertOpen = false;
     };
     GameObject* createObject(int key, CCPoint position, bool noUndo) {
@@ -126,32 +78,26 @@ class $modify(MyLevelEditorLayer, LevelEditorLayer) {
         int budget = getBudget(m_level->m_levelID);
         if (budget <= 0) return obj;
         int count = m_objectCount.value();
-        // NOTIFICATIONS! (miskaa.api again)
         int pct = (int)((float)count / (float)budget * 100.f);
-        // reset milestone if the count drops back
+
         if (pct < 75) m_fields->m_lastNotifMilestone = 0;
         else if (pct < 85) m_fields->m_lastNotifMilestone = std::min(m_fields->m_lastNotifMilestone, 74);
         else if (pct < 95) m_fields->m_lastNotifMilestone = std::min(m_fields->m_lastNotifMilestone, 84);
-        auto fireNotif = [](const std::string& text) {
-            notifapi::notif::create(text, "warning", 3.5f, {0, 0, 0}, 1.0f, notifapi::Position::TopCenter, notifapi::Animation::Slide, "", 0.f)->show();
-        };
+        auto fireNotif = [](const std::string& text) {notifapi::notif::create(text, "warning", 3.5f, {0, 0, 0}, 1.0f, notifapi::Position::TopCenter, notifapi::Animation::Slide, "", 0.f)->show();};
         if (pct >= 95 && m_fields->m_lastNotifMilestone < 95) { m_fields->m_lastNotifMilestone = 95; fireNotif("95% of budget reached!"); }
         else if (pct >= 85 && m_fields->m_lastNotifMilestone < 85) { m_fields->m_lastNotifMilestone = 85; fireNotif("85% of budget reached!"); }
         else if (pct >= 75 && m_fields->m_lastNotifMilestone < 75) { m_fields->m_lastNotifMilestone = 75; fireNotif("75% of budget reached!"); }
-        // budget reached reached alert
         if (count >= budget && !m_fields->m_budgetIgnored && !m_fields->m_alertOpen) {
             m_fields->m_alertOpen = true;
-            this->retain();
-            auto* delegate = BudgetAlertDelegate::create([this](bool yes) {
-                m_fields->m_alertOpen = false;
-                if (yes) { m_fields->m_budgetIgnored = true;} // yes means ignore budget for the rest of this session
-                this->release();
-            });
-            // retain delegate so it stays alive while alert is shown
-            delegate->retain();
-            auto alert = FLAlertLayer::create(delegate, fmt::format("{} budget reached", budget).c_str(), "You reached the limit you've set, continue?", "No", "Yes");
-            alert->m_noElasticity = true;
-            alert->show();
+            geode::createQuickPopup(
+                fmt::format("{} budget reached", budget).c_str(),
+                "You reached the limit you've set, continue?",
+                "No", "Yes",
+                [this](auto, bool yes) {
+                    m_fields->m_alertOpen = false;
+                    if (yes) m_fields->m_budgetIgnored = true;
+                }
+            );
         }
         return obj;
     }
@@ -168,73 +114,42 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
         if (!m_editorLayer || !m_editorLayer->m_level) return true;
         int budget = getBudget(m_editorLayer->m_level->m_levelID);
         int count = m_editorLayer->m_objectCount.value();
-        // append budget info to the label if budget is set
-        if (budget > 0) {
-            int pct = (int)((float)count / (float)budget * 100.f);
-            std::string append = fmt::format(" (/{} - {}%)", budget, pct);
-            CCNode* labelNode = this->getChildByIDRecursive("object-count-label");
-            if (!labelNode) {
-                CCNode* infoMenu = this->getChildByIDRecursive("info-menu");
-                if (infoMenu && infoMenu->getChildren()) {
-                    for (auto* child : CCArrayExt<CCNode*>(infoMenu->getChildren())) {
-                        auto* lbl = dynamic_cast<CCLabelBMFont*>(child);
-                        if (!lbl) continue;
-                        std::string s = lbl->getString();
-                        if (s.find("bjects") != std::string::npos) {
-                            labelNode = lbl;
-                            break;
-                        }
-                    }
-                }
-            }
-            if (auto* lbl = typeinfo_cast<CCLabelBMFont*>(labelNode)) {
-                std::string existing = lbl->getString();
-                if (existing.find("(/") == std::string::npos) {
-                    lbl->setString((existing + append).c_str());
-                }
-            }
-        }
-
-        // make object-count-label clickable to open budget popup
-        CCNode* labelNode = this->getChildByIDRecursive("object-count-label");
-        if (!labelNode) {
-            CCNode* infoMenu = this->getChildByIDRecursive("info-menu");
-            if (infoMenu && infoMenu->getChildren()) {
+        // find obj count label
+        auto findLabel = [this]() -> CCNode* {
+            if (auto* n = this->getChildByIDRecursive("object-count-label")) return n;
+            if (auto* infoMenu = this->getChildByIDRecursive("info-menu")) {
                 for (auto* child : CCArrayExt<CCNode*>(infoMenu->getChildren())) {
                     auto* lbl = dynamic_cast<CCLabelBMFont*>(child);
-                    if (!lbl) continue;
-                    std::string s = lbl->getString();
-                    if (s.find("bjects") != std::string::npos) {
-                        labelNode = lbl;
-                        break;
-                    }
+                    if (lbl && std::string(lbl->getString()).find("bjects") != std::string::npos)
+                        return lbl;
                 }
             }
+            return nullptr;
+        };
+        // append budget info if budget is set
+        if (budget > 0) {
+            int pct = (int)((float)count / (float)budget * 100.f);
+            if (auto* lbl = typeinfo_cast<CCLabelBMFont*>(findLabel())) {
+                std::string existing = lbl->getString();
+                if (existing.find("(/") == std::string::npos)
+                    lbl->setString((existing + fmt::format(" (/{} - {}%)", budget, pct)).c_str());
+            }
         }
-        if (labelNode) {
-            auto parent = labelNode->getParent();
-            auto pos = labelNode->getPosition();
-            auto size = labelNode->getContentSize();
-            auto scale = labelNode->getScale();
-
-            // invisible button overlaid on top of the label
+        // make label clickable
+        if (auto* labelNode = findLabel()) {
+            auto* parent = labelNode->getParent();
             auto hitSpr = CCSprite::create();
-            hitSpr->setContentSize(size);
-            auto btn = CCMenuItemSpriteExtra::create(
-                hitSpr, this,
-                menu_selector(MyEditorPauseLayer::onOpenBudget)
-            );
-            btn->setPosition(pos);
-            btn->setScale(scale);
-            btn->setContentSize(size);
-
-            auto menu = CCMenu::create();
+            hitSpr->setContentSize(labelNode->getContentSize());
+            auto* btn = CCMenuItemSpriteExtra::create(hitSpr, this, menu_selector(MyEditorPauseLayer::onOpenBudget));
+            btn->setPosition(labelNode->getPosition());
+            btn->setScale(labelNode->getScale());
+            btn->setContentSize(labelNode->getContentSize());
+            auto* menu = CCMenu::create();
             menu->setPosition({0, 0});
             menu->setZOrder(labelNode->getZOrder() + 1);
             menu->addChild(btn);
             parent->addChild(menu);
         }
-
         return true;
     }
 };
