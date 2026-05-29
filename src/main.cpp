@@ -19,11 +19,12 @@ static void saveBudget(int levelID, int budget) {
 }
 
 // BudgetPopup
-class BudgetPopup : public geode::Popup<int> {
+class BudgetPopup : public geode::Popup {
 protected:
     int m_levelID = 0;
     CCTextInputNode* m_input = nullptr;
-    bool setup(int levelID) override {
+    bool init(int levelID) {
+        if (!Popup::init(280.f, 185.f)) return false;
         m_levelID = levelID;
         this->setTitle("Set Object Count Budget");
         auto cs = m_mainLayer->getContentSize();
@@ -84,11 +85,11 @@ protected:
 public:
     static BudgetPopup* create(int levelID) {
         auto ret = new BudgetPopup();
-        if (ret->initAnchored(280.f, 185.f, levelID)) {
+        if (ret->init(levelID)) {
             ret->autorelease();
             return ret;
         }
-        CC_SAFE_DELETE(ret);
+        delete ret;
         return nullptr;
     }
 };
@@ -153,22 +154,21 @@ class $modify(MyLevelEditorLayer, LevelEditorLayer) {
         int budget = getBudget(m_level->m_levelID);
         if (budget <= 0) return obj;
         int count = m_objectCount.value();
-        auto& f = *m_fields;
         // NOTIFICATIONS! (miskaa.api again)
         int pct = (int)((float)count / (float)budget * 100.f);
         // reset milestone if the count drops back
-        if (pct < 75) f.m_lastNotifMilestone = 0;
-        else if (pct < 85) f.m_lastNotifMilestone = std::min(f.m_lastNotifMilestone, 74);
-        else if (pct < 95) f.m_lastNotifMilestone = std::min(f.m_lastNotifMilestone, 84);
+        if (pct < 75) m_fields->m_lastNotifMilestone = 0;
+        else if (pct < 85) m_fields->m_lastNotifMilestone = std::min(m_fields->m_lastNotifMilestone, 74);
+        else if (pct < 95) m_fields->m_lastNotifMilestone = std::min(m_fields->m_lastNotifMilestone, 84);
         auto fireNotif = [](const std::string& text) {
             notifapi::notif::create(text, "warning", 3.5f, {0, 0, 0}, 1.0f, notifapi::Position::TopCenter, notifapi::Animation::Slide, "", 0.f)->show();
         };
-        if (pct >= 95 && f.m_lastNotifMilestone < 95) { f.m_lastNotifMilestone = 95; fireNotif("95% of budget reached!"); }
-        else if (pct >= 85 && f.m_lastNotifMilestone < 85) { f.m_lastNotifMilestone = 85; fireNotif("85% of budget reached!"); }
-        else if (pct >= 75 && f.m_lastNotifMilestone < 75) { f.m_lastNotifMilestone = 75; fireNotif("75% of budget reached!"); }
+        if (pct >= 95 && m_fields->m_lastNotifMilestone < 95) { m_fields->m_lastNotifMilestone = 95; fireNotif("95% of budget reached!"); }
+        else if (pct >= 85 && m_fields->m_lastNotifMilestone < 85) { m_fields->m_lastNotifMilestone = 85; fireNotif("85% of budget reached!"); }
+        else if (pct >= 75 && m_fields->m_lastNotifMilestone < 75) { m_fields->m_lastNotifMilestone = 75; fireNotif("75% of budget reached!"); }
         // budget reached reached alert
-        if (count >= budget && !f.m_budgetIgnored && !f.m_alertOpen) {
-            f.m_alertOpen = true;
+        if (count >= budget && !m_fields->m_budgetIgnored && !m_fields->m_alertOpen) {
+            m_fields->m_alertOpen = true;
             this->retain();
             auto* delegate = BudgetAlertDelegate::create([this](bool yes) {
                 m_fields->m_alertOpen = false;
@@ -204,8 +204,7 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
         if (!labelNode) {
             CCNode* infoMenu = this->getChildByIDRecursive("info-menu");
             if (infoMenu && infoMenu->getChildren()) {
-                CCObject* child = nullptr;
-                CCARRAY_FOREACH(infoMenu->getChildren(), child) {
+                for (auto* child : CCArrayExt<CCNode*>(infoMenu->getChildren())) {
                     auto* lbl = dynamic_cast<CCLabelBMFont*>(child);
                     if (!lbl) continue;
                     std::string s = lbl->getString();
