@@ -1,5 +1,4 @@
 #include <Geode/Geode.hpp>
-#include <Geode/modify/EditLevelLayer.hpp>
 #include <Geode/modify/LevelEditorLayer.hpp>
 #include <Geode/modify/EditorPauseLayer.hpp>
 #include <miskaa.notif/src/includes/notif.hpp>
@@ -22,7 +21,7 @@ static void saveBudget(int levelID, int budget) {
 class BudgetPopup : public geode::Popup {
 protected:
     int m_levelID = 0;
-    CCTextInputNode* m_input = nullptr;
+    geode::TextInput* m_input = nullptr;
     bool init(int levelID) {
         if (!Popup::init(280.f, 185.f)) return false;
         m_levelID = levelID;
@@ -31,14 +30,14 @@ protected:
         float cx = cs.width / 2.f;
         float cy = cs.height / 2.f;
         // input
-        m_input = CCTextInputNode::create(180.f, 40.f, "Enter limit...", "bigFont.fnt");
-        m_input->setAllowedChars("0123456789");
-        m_input->setMaxLabelLength(9);
+        m_input = geode::TextInput::create(180.f, "Enter limit...", "bigFont.fnt");
+        m_input->setFilter("0123456789");
+        m_input->setMaxCharCount(9);
         m_input->setPosition(ccp(cx, cy + 12.f));
         m_input->setScale(0.75f);
         int current = getBudget(levelID);
         if (current > 0)
-            m_input->setString(std::to_string(current).c_str());
+            m_input->setString(std::to_string(current));
         m_mainLayer->addChild(m_input);
         // btn's
         auto btnMenu = CCMenu::create();
@@ -111,33 +110,6 @@ public:
     }
 };
 
-// budget button
-class $modify(MyEditLevelLayer, EditLevelLayer) {
-    void onBudget(CCObject*) {
-        if (!m_level) return;
-        BudgetPopup::create(m_level->m_levelID)->show();
-    }
-    bool init(GJGameLevel* level) {
-        if (!EditLevelLayer::init(level)) return false;
-        if (!m_buttonMenu) return true;
-        // fallback since writing AND lazy to add a png until later
-        CCMenuItemSpriteExtra* btn = nullptr;
-        auto customSpr = CCSprite::createWithSpriteFrameName("budget-btn.png");
-        if (customSpr) {
-            btn = CCMenuItemSpriteExtra::create(
-                customSpr, this,
-                menu_selector(MyEditLevelLayer::onBudget)
-            );
-        } else {
-            auto spr = ButtonSprite::create("Budget", "bigFont.fnt", "GJ_button_04.png", 0.55f);
-            btn = CCMenuItemSpriteExtra::create(spr, this, menu_selector(MyEditLevelLayer::onBudget));
-        }
-        m_buttonMenu->addChild(btn);
-        m_buttonMenu->updateLayout();
-        return true;
-    }
-};
-
 // LevelEditorLayer
 class $modify(MyLevelEditorLayer, LevelEditorLayer) {
     struct Fields {
@@ -190,17 +162,44 @@ class $modify(MyLevelEditorLayer, LevelEditorLayer) {
 
 // EditorPauseLayer
 class $modify(MyEditorPauseLayer, EditorPauseLayer) {
+    void onOpenBudget(CCObject*) {
+        if (!m_editorLayer || !m_editorLayer->m_level) return;
+        BudgetPopup::create(m_editorLayer->m_level->m_levelID)->show();
+    }
     bool init(LevelEditorLayer* editorLayer) {
         if (!EditorPauseLayer::init(editorLayer)) return false;
         if (!m_editorLayer || !m_editorLayer->m_level) return true;
         int budget = getBudget(m_editorLayer->m_level->m_levelID);
-        if (budget <= 0) return true;
         int count = m_editorLayer->m_objectCount.value();
-        int pct = (int)((float)count / (float)budget * 100.f);
-        std::string append = fmt::format(" (/{} - {}%)", budget, pct);
-        // geode.node-ids sees object-count-label
+        // append budget info to the label if budget is set
+        if (budget > 0) {
+            int pct = (int)((float)count / (float)budget * 100.f);
+            std::string append = fmt::format(" (/{} - {}%)", budget, pct);
+            CCNode* labelNode = this->getChildByIDRecursive("object-count-label");
+            if (!labelNode) {
+                CCNode* infoMenu = this->getChildByIDRecursive("info-menu");
+                if (infoMenu && infoMenu->getChildren()) {
+                    for (auto* child : CCArrayExt<CCNode*>(infoMenu->getChildren())) {
+                        auto* lbl = dynamic_cast<CCLabelBMFont*>(child);
+                        if (!lbl) continue;
+                        std::string s = lbl->getString();
+                        if (s.find("bjects") != std::string::npos) {
+                            labelNode = lbl;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (auto* lbl = typeinfo_cast<CCLabelBMFont*>(labelNode)) {
+                std::string existing = lbl->getString();
+                if (existing.find("(/") == std::string::npos) {
+                    lbl->setString((existing + append).c_str());
+                }
+            }
+        }
+
+        // make object-count-label clickable to open budget popup
         CCNode* labelNode = this->getChildByIDRecursive("object-count-label");
-        // fallback
         if (!labelNode) {
             CCNode* infoMenu = this->getChildByIDRecursive("info-menu");
             if (infoMenu && infoMenu->getChildren()) {
@@ -215,12 +214,30 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
                 }
             }
         }
-        if (auto* lbl = typeinfo_cast<CCLabelBMFont*>(labelNode)) {
-            std::string existing = lbl->getString();
-            if (existing.find("(/") == std::string::npos) {
-                lbl->setString((existing + append).c_str());
-            }
+        if (labelNode) {
+            auto parent = labelNode->getParent();
+            auto pos = labelNode->getPosition();
+            auto size = labelNode->getContentSize();
+            auto scale = labelNode->getScale();
+
+            // invisible button overlaid on top of the label
+            auto hitSpr = CCSprite::create();
+            hitSpr->setContentSize(size);
+            auto btn = CCMenuItemSpriteExtra::create(
+                hitSpr, this,
+                menu_selector(MyEditorPauseLayer::onOpenBudget)
+            );
+            btn->setPosition(pos);
+            btn->setScale(scale);
+            btn->setContentSize(size);
+
+            auto menu = CCMenu::create();
+            menu->setPosition({0, 0});
+            menu->setZOrder(labelNode->getZOrder() + 1);
+            menu->addChild(btn);
+            parent->addChild(menu);
         }
+
         return true;
     }
 };
