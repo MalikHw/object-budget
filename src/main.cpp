@@ -49,9 +49,9 @@ protected:
             item->setPositionX(x);
             btnMenu->addChild(item);
         };
-        addBtn("Set", "GJ_button_01.png", -70.f, menu_selector(BudgetPopup::onSet));
+        addBtn("Set", "GJ_button_01.png", -83.f, menu_selector(BudgetPopup::onSet));
         addBtn("Clear", "GJ_button_06.png", 0.f, menu_selector(BudgetPopup::onClear));
-        addBtn("Cancel", "GJ_button_05.png", 70.f, menu_selector(BudgetPopup::onCancel));
+        addBtn("Cancel", "GJ_button_05.png", 83.f, menu_selector(BudgetPopup::onCancel));
         return true;
     }
     void onSet(CCObject*) {
@@ -96,8 +96,8 @@ public:
 // Budget alert delegate
 class BudgetAlertDelegate : public CCObject, public FLAlertLayerProtocol {
 public:
+    // btn2 is true then "no" (block)
     // btn2 is true then "Yes" (continue / ignore budget this session)
-    // btn2 is true then "Yes" (idk how to block input) so its same shit
     std::function<void(bool)> callback;
     static BudgetAlertDelegate* create(std::function<void(bool)> cb) {
         auto* d = new BudgetAlertDelegate();
@@ -149,7 +149,7 @@ class $modify(MyLevelEditorLayer, LevelEditorLayer) {
             });
             // retain delegate so it stays alive while alert is shown
             delegate->retain();
-            auto alert = FLAlertLayer::create(delegate, fmt::format("{} budget reached", budget).c_str(), "You reached the limit you've set, continue?", "Yes", "Yes");
+            auto alert = FLAlertLayer::create(delegate, fmt::format("{} budget reached", budget).c_str(), "You reached the limit you've set, continue?", "No", "Yes");
             alert->m_noElasticity = true;
             alert->show();
         }
