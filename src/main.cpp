@@ -1,4 +1,5 @@
 #include <Geode/Geode.hpp>
+#include <Geode/ui/BasedButtonSprite.hpp>
 #include <Geode/modify/LevelEditorLayer.hpp>
 #include <Geode/modify/EditorPauseLayer.hpp>
 #include <miskaa.notif/src/includes/notif.hpp>
@@ -130,7 +131,7 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
         // add button to guidelines-menu
         auto* guidelinesMenu = this->getChildByID("guidelines-menu");
         if (!guidelinesMenu) return true;
-        auto* spr = CCSprite::create("the-fucking-button.png"_spr);
+        auto* spr = CircleButtonSprite::createWithSpriteFrameName("the-fucking-button.png"_spr, CircleBaseColor::Green, CircleBaseSize::Small);
         auto* btn = CCMenuItemSpriteExtra::create(spr, this, menu_selector(MyEditorPauseLayer::onOpenBudget));
         static_cast<CCMenu*>(guidelinesMenu)->addChild(btn);
         static_cast<CCMenu*>(guidelinesMenu)->updateLayout();
