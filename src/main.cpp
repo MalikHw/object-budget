@@ -129,12 +129,14 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
         }
         // make the label THE button
         auto* parent = lbl->getParent();
-        auto* btn = CCMenuItemLabel::create(lbl, this, menu_selector(MyEditorPauseLayer::onOpenBudget));
-        btn->setPosition(lbl->getPosition());
-        btn->setZOrder(lbl->getZOrder());
+        auto pos = lbl->getPosition();
+        auto z = lbl->getZOrder();
         lbl->retain();
         parent->removeChild(lbl, false);
+        auto* btn = CCMenuItemSpriteExtra::create(lbl, nullptr, this, menu_selector(MyEditorPauseLayer::onOpenBudget));
         lbl->release();
+        btn->setPosition(pos);
+        btn->setZOrder(z);
         parent->addChild(btn);
         return true;
     }
