@@ -6,13 +6,10 @@
 
 using namespace geode::prelude;
 
-static constexpr const char* BUDGET_KEY = "budget";
-static int getBudget(CCLayer* layer) {
-    return alpha::level_storage::getSavedValue<int>(layer, BUDGET_KEY);
-}
-static void saveBudget(LevelEditorLayer* layer, int budget) {
-    alpha::level_storage::setSavedValue(layer, BUDGET_KEY, budget);
-}
+static constexpr const char* BUDGET_KEY = "malikhw47.object-budget/budget";
+
+static int getBudget(CCLayer* layer) {return alpha::level_storage::getSavedValue<int>(layer, BUDGET_KEY);}
+static void saveBudget(LevelEditorLayer* layer, int budget) {alpha::level_storage::setSavedValue(layer, BUDGET_KEY, budget);}
 
 // BudgetPopup
 class BudgetPopup : public geode::Popup {
@@ -42,9 +39,9 @@ protected:
             item->setPositionX(x);
             btnMenu->addChild(item);
         };
-        addBtn("Set",    "GJ_button_01.png", -83.f, menu_selector(BudgetPopup::onSet));
-        addBtn("Clear",  "GJ_button_06.png",   0.f, menu_selector(BudgetPopup::onClear));
-        addBtn("Cancel", "GJ_button_05.png",  83.f, menu_selector(BudgetPopup::onCancel));
+        addBtn("Set", "GJ_button_01.png", -83.f, menu_selector(BudgetPopup::onSet));
+        addBtn("Clear", "GJ_button_06.png", 0.f, menu_selector(BudgetPopup::onClear));
+        addBtn("Cancel", "GJ_button_05.png", 83.f, menu_selector(BudgetPopup::onCancel));
         return true;
     }
     void onSet(CCObject*) {
@@ -75,6 +72,7 @@ class $modify(MyLevelEditorLayer, LevelEditorLayer) {
         bool m_budgetIgnored = false;
         int m_lastNotifMilestone = 0;
         bool m_alertOpen = false;
+        bool m_budgetCheckPending = false;
     };
     GameObject* createObject(int key, CCPoint position, bool noUndo) {
         auto obj = LevelEditorLayer::createObject(key, position, noUndo);
@@ -85,22 +83,27 @@ class $modify(MyLevelEditorLayer, LevelEditorLayer) {
         int pct = (int)((float)count / (float)budget * 100.f);
 
         if (pct < 75) m_fields->m_lastNotifMilestone = 0;
-        
+
         auto fireNotif = [](const std::string& text) {notifapi::notif::create(text, "warning", 3.5f, {0, 0, 0}, 1.0f, notifapi::Position::TopCenter, notifapi::Animation::Slide, "", 0.f)->show();};
         if (pct >= 95 && m_fields->m_lastNotifMilestone < 95) { m_fields->m_lastNotifMilestone = 95; fireNotif("95% of budget reached!"); }
         else if (pct >= 85 && m_fields->m_lastNotifMilestone < 85) { m_fields->m_lastNotifMilestone = 85; fireNotif("85% of budget reached!"); }
         else if (pct >= 75 && m_fields->m_lastNotifMilestone < 75) { m_fields->m_lastNotifMilestone = 75; fireNotif("75% of budget reached!"); }
-        if (count >= budget && !m_fields->m_budgetIgnored && !m_fields->m_alertOpen) {
-            m_fields->m_alertOpen = true;
-            geode::createQuickPopup(
-                fmt::format("{} budget reached", budget).c_str(),
-                "You reached the limit you've set, continue?",
-                "No", "Yes",
-                [this](auto, bool yes) {
-                    m_fields->m_alertOpen = false;
-                    if (yes) m_fields->m_budgetIgnored = true;
-                }
-            );
+
+        // Defer the over-budget popup to end of frame so bulk placements
+        // (e.g. custom objects) only ever produce one popup, not a spam.
+        if (count >= budget && !m_fields->m_budgetIgnored && !m_fields->m_alertOpen && !m_fields->m_budgetCheckPending) {
+            m_fields->m_budgetCheckPending = true;
+            Loader::get()->queueInMainThread([this, budget] {
+                m_fields->m_budgetCheckPending = false;
+                if (m_fields->m_budgetIgnored || m_fields->m_alertOpen) return;
+                int currentCount = m_objectCount.value();
+                if (currentCount < budget) return;
+                m_fields->m_alertOpen = true;
+                geode::createQuickPopup(
+                    fmt::format("{} budget reached", budget).c_str(), "You reached the limit you've set, continue?", "No", "Yes",
+                    [this](auto, bool yes) {m_fields->m_alertOpen = false; if (yes) m_fields->m_budgetIgnored = true;}
+                );
+            });
         }
         return obj;
     }
@@ -122,7 +125,7 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
             if (auto* n = this->getChildByIDRecursive("object-count-label")) return n;
             if (auto* infoMenu = this->getChildByIDRecursive("info-menu")) {
                 for (auto* child : CCArrayExt<CCNode*>(infoMenu->getChildren())) {
-                    auto* lbl = dynamic_cast<CCLabelBMFont*>(child);
+                    auto* lbl = typeinfo_cast<CCLabelBMFont*>(child);
                     if (lbl && std::string(lbl->getString()).find("bjects") != std::string::npos)
                         return lbl;
                 }
