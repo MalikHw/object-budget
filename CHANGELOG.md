@@ -1,3 +1,6 @@
+### v0.2.1
+- fixed bug where pasting from custom objects shows popup TOO many times
+
 ### v0.2.0-beta
 - attempt to save limits for each level
 
