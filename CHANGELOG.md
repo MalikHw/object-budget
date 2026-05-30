@@ -1,4 +1,7 @@
-## v0.2.2
+## v0.3.0
+- now its a button on bottom, thats better
+
+### v0.2.2
 - Changed name (supposed to be Object Budget)
 - some issues fixed
 

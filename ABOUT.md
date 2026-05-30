@@ -1,12 +1,10 @@
 ## Object Budget
 allows you to set a budget obj count for editor levels! good for like 50 OBJECTS challenge
 
-# <cr>Sorry but the object count will be on top since i don't know how to make the text a button without causing bugs, may be changed in future</cr>
-
 ### How To Use?
 - open the editor
 - pause
-- click the object count (try on the very left)
+- click the button on bottom
 - set count
 - set
 

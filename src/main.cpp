@@ -118,26 +118,22 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
     bool init(LevelEditorLayer* editorLayer) {
         if (!EditorPauseLayer::init(editorLayer)) return false;
         if (!m_editorLayer || !m_editorLayer->m_level) return true;
-        auto* lbl = typeinfo_cast<CCLabelBMFont*>(this->getChildByIDRecursive("object-count-label"));
-        if (!lbl) return true;
-        // append budget info if a limit is set
-        int budget = getBudget(m_editorLayer);
-        if (budget > 0) {
-            int count = m_editorLayer->m_objectCount.value();
-            int pct = (int)((float)count / (float)budget * 100.f);
-            lbl->setString((std::string(lbl->getString()) + fmt::format(" (/{} - {}%)", budget, pct)).c_str());
+        // update label with budget info, leave it untouched otherwise
+        if (auto* lbl = typeinfo_cast<CCLabelBMFont*>(this->getChildByIDRecursive("object-count-label"))) {
+            int budget = getBudget(m_editorLayer);
+            if (budget > 0) {
+                int count = m_editorLayer->m_objectCount.value();
+                int pct = (int)((float)count / (float)budget * 100.f);
+                lbl->setString((std::string(lbl->getString()) + fmt::format(" (/{} - {}%)", budget, pct)).c_str());
+            }
         }
-        // make the label THE button
-        auto* parent = lbl->getParent();
-        auto pos = lbl->getPosition();
-        auto z = lbl->getZOrder();
-        lbl->retain();
-        parent->removeChild(lbl, false);
-        auto* btn = CCMenuItemSpriteExtra::create(lbl, nullptr, this, menu_selector(MyEditorPauseLayer::onOpenBudget));
-        lbl->release();
-        btn->setPosition(ccp(300.f, 90.f));
-        btn->setZOrder(z);
-        parent->addChild(btn);
+        // add button to guidelines-menu
+        auto* guidelinesMenu = this->getChildByID("guidelines-menu");
+        if (!guidelinesMenu) return true;
+        auto* spr = CCSprite::create("the-fucking-button.png"_spr);
+        auto* btn = CCMenuItemSpriteExtra::create(spr, this, menu_selector(MyEditorPauseLayer::onOpenBudget));
+        static_cast<CCMenu*>(guidelinesMenu)->addChild(btn);
+        static_cast<CCMenu*>(guidelinesMenu)->updateLayout();
         return true;
     }
 };
