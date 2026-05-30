@@ -118,46 +118,24 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
     bool init(LevelEditorLayer* editorLayer) {
         if (!EditorPauseLayer::init(editorLayer)) return false;
         if (!m_editorLayer || !m_editorLayer->m_level) return true;
+        auto* lbl = typeinfo_cast<CCLabelBMFont*>(this->getChildByIDRecursive("object-count-label"));
+        if (!lbl) return true;
+        // append budget info if a limit is set
         int budget = getBudget(m_editorLayer);
-        int count = m_editorLayer->m_objectCount.value();
-        // find obj count label
-        auto findLabel = [this]() -> CCNode* {
-            if (auto* n = this->getChildByIDRecursive("object-count-label")) return n;
-            if (auto* infoMenu = this->getChildByIDRecursive("info-menu")) {
-                for (auto* child : CCArrayExt<CCNode*>(infoMenu->getChildren())) {
-                    auto* lbl = typeinfo_cast<CCLabelBMFont*>(child);
-                    if (lbl && std::string(lbl->getString()).find("bjects") != std::string::npos)
-                        return lbl;
-                }
-            }
-            return nullptr;
-        };
-        // append budget info if budget set
         if (budget > 0) {
+            int count = m_editorLayer->m_objectCount.value();
             int pct = (int)((float)count / (float)budget * 100.f);
-            if (auto* lbl = typeinfo_cast<CCLabelBMFont*>(findLabel())) {
-                std::string existing = lbl->getString();
-                if (existing.find("(/") == std::string::npos)
-                    lbl->setString((existing + fmt::format(" (/{} - {}%)", budget, pct)).c_str());
-            }
+            lbl->setString((std::string(lbl->getString()) + fmt::format(" (/{} - {}%)", budget, pct)).c_str());
         }
-        // make label clickable
-        if (auto* labelNode = findLabel()) {
-            auto* parent = labelNode->getParent();
-            auto labelSize = labelNode->getContentSize();
-            auto hitSize = CCSize(labelSize.width + 20.f, labelSize.height + 16.f);
-            auto hitSpr = CCSprite::create();
-            hitSpr->setContentSize(hitSize);
-            auto* btn = CCMenuItemSpriteExtra::create(hitSpr, this, menu_selector(MyEditorPauseLayer::onOpenBudget));
-            btn->setPosition(labelNode->getPosition());
-            btn->setScale(labelNode->getScale());
-            btn->setContentSize(hitSize);
-            auto* menu = CCMenu::create();
-            menu->setPosition({0, 0});
-            menu->setZOrder(labelNode->getZOrder() + 1);
-            menu->addChild(btn);
-            parent->addChild(menu);
-        }
+        // make the label THE button
+        auto* parent = lbl->getParent();
+        auto* btn = CCMenuItemLabel::create(lbl, this, menu_selector(MyEditorPauseLayer::onOpenBudget));
+        btn->setPosition(lbl->getPosition());
+        btn->setZOrder(lbl->getZOrder());
+        lbl->retain();
+        parent->removeChild(lbl, false);
+        lbl->release();
+        parent->addChild(btn);
         return true;
     }
 };

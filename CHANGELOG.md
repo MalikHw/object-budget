@@ -1,3 +1,7 @@
+## v0.2.2
+- Changed name (supposed to be Object Budget)
+- some issues fixed
+
 ### v0.2.1
 - fixed bug where pasting from custom objects shows popup TOO many times
 
