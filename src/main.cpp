@@ -135,7 +135,7 @@ class $modify(MyEditorPauseLayer, EditorPauseLayer) {
         parent->removeChild(lbl, false);
         auto* btn = CCMenuItemSpriteExtra::create(lbl, nullptr, this, menu_selector(MyEditorPauseLayer::onOpenBudget));
         lbl->release();
-        btn->setPosition(pos);
+        btn->setPosition(ccp(77.f, 90.f));
         btn->setZOrder(z);
         parent->addChild(btn);
         return true;
